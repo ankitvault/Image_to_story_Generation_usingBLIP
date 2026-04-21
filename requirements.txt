@@ -1,0 +1,7 @@
+flask>=3.0
+torch>=2.1
+torchvision>=0.16
+transformers>=4.40
+Pillow>=10.0
+sentencepiece>=0.1.99
+accelerate>=0.27

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Captioning Model</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --card-border: #30363d;
+            --text-color: #e6edf3;
+            --muted-text: #8b949e;
+            --accent-blue: #58a6ff;
+            --success-green: #238636;
+            --error-red: #f85149;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+            font-size: 15px;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+
+        .story-card {
+            grid-column: 1 / -1;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            color: var(--text-color);
+        }
+
+        /* Upload Section */
+        .drop-zone {
+            border: 2px dashed var(--card-border);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+            color: var(--muted-text);
+            margin-bottom: 1rem;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        #file-input {
+            display: none;
+        }
+        
+        .preview-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 1rem;
+            min-height: 54px;
+        }
+
+        .preview-thumb {
+            width: 64px;
+            height: 54px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid var(--card-border);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-generate {
+            background-color: var(--card-border);
+            color: var(--muted-text);
+            cursor: not-allowed;
+        }
+
+        .btn-generate.ready {
+            background-color: var(--success-green);
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        .btn-generate.ready:hover {
+            background-color: #2ea043;
+        }
+
+        .btn-reset {
+            background-color: var(--card-border);
+            color: var(--text-color);
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .btn-reset:hover {
+            background-color: #8b949e;
+        }
+
+        /* Captions Section */
+        .captions-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .captions-list li {
+            line-height: 1.4;
+        }
+
+        .image-label {
+            color: var(--accent-blue);
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        /* Story Section */
+        .story-content {
+            line-height: 1.6;
+            color: var(--text-color);
+            white-space: pre-wrap;
+        }
+
+        .waiting-text {
+            color: var(--muted-text);
+            font-style: italic;
+        }
+
+        /* Utilities */
+        .spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid transparent;
+            border-top-color: var(--accent-blue);
+            border-right-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-border {
+            border-color: var(--error-red) !important;
+        }
+        
+        .error-text {
+            color: var(--error-red);
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Top Left: Upload -->
+        <div class="card" id="upload-card">
+            <h2>Upload Images</h2>
+            <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                Click or Drag Images (1–7)
+            </div>
+            <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.webp,.bmp">
+            
+            <div class="preview-strip" id="preview-strip"></div>
+            
+            <button class="btn btn-generate" id="btn-generate" disabled>
+                <div class="spinner" id="btn-spinner"></div>
+                <span id="btn-text">Generate Story</span>
+            </button>
+            <div id="error-msg" class="error-text" style="display: none;"></div>
+        </div>
+
+        <!-- Top Right: Captions -->
+        <div class="card" id="captions-card">
+            <h2>Captions</h2>
+            <ul class="captions-list" id="captions-list">
+                <li class="waiting-text" id="captions-waiting">Waiting…</li>
+            </ul>
+        </div>
+
+        <!-- Bottom: Story (Full Width) -->
+        <div class="card story-card" id="story-card">
+            <h2>Story</h2>
+            <div class="story-content waiting-text" id="story-content">Waiting…</div>
+            <button class="btn btn-reset" id="btn-reset" onclick="resetApp()">↺ Start Over</button>
+        </div>
+
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const previewStrip = document.getElementById('preview-strip');
+        const btnGenerate = document.getElementById('btn-generate');
+        const btnText = document.getElementById('btn-text');
+        const btnSpinner = document.getElementById('btn-spinner');
+        const captionsList = document.getElementById('captions-list');
+        const storyContent = document.getElementById('story-content');
+        const btnReset = document.getElementById('btn-reset');
+        const errorMsg = document.getElementById('error-msg');
+        
+        const uploadCard = document.getElementById('upload-card');
+        const captionsCard = document.getElementById('captions-card');
+        const storyCard = document.getElementById('story-card');
+
+        let selectedFiles = [];
+
+        // Drag and Drop events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            const validFiles = Array.from(files).filter(file => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                return ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext);
+            });
+
+            if (validFiles.length > 0) {
+                // Limit to 7 maximum
+                const availableSlots = 7 - selectedFiles.length;
+                const filesToAdd = validFiles.slice(0, availableSlots);
+                
+                selectedFiles = [...selectedFiles, ...filesToAdd];
+                updatePreview();
+                enableGenerateBtn();
+            }
+        }
+
+        function updatePreview() {
+            previewStrip.innerHTML = '';
+            selectedFiles.forEach(file => {
+                const img = document.createElement('img');
+                img.classList.add('preview-thumb');
+                img.src = URL.createObjectURL(file);
+                previewStrip.appendChild(img);
+            });
+        }
+
+        function enableGenerateBtn() {
+            if (selectedFiles.length > 0) {
+                btnGenerate.disabled = false;
+                btnGenerate.classList.add('ready');
+            }
+        }
+
+        btnGenerate.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            // UI loading state
+            btnGenerate.disabled = true;
+            btnGenerate.classList.remove('ready');
+            btnSpinner.style.display = 'block';
+            errorMsg.style.display = 'none';
+            removeErrorBorders();
+
+            captionsList.innerHTML = '<li class="waiting-text">Loading... <div class="spinner" style="display:inline-block; vertical-align:middle; margin-left:8px;"></div></li>';
+            storyContent.innerHTML = 'Loading... <div class="spinner" style="display:inline-block; vertical-align:middle; margin-left:8px;"></div>';
+            storyContent.classList.add('waiting-text');
+            btnReset.style.display = 'none';
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('images', file);
+            });
+
+            try {
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Server error occurred.');
+                }
+
+                renderResults(data);
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                btnSpinner.style.display = 'none';
+            }
+        });
+
+        function renderResults(data) {
+            // Captions
+            captionsList.innerHTML = '';
+            data.captions.forEach((cap, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="image-label">IMAGE ${index + 1}</span>${cap}`;
+                captionsList.appendChild(li);
+            });
+
+            // Story
+            storyContent.classList.remove('waiting-text');
+            storyContent.innerHTML = data.story;
+
+            // Show start over button
+            btnReset.style.display = 'block';
+        }
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+            uploadCard.classList.add('error-border');
+            captionsCard.classList.add('error-border');
+            storyCard.classList.add('error-border');
+            
+            captionsList.innerHTML = '<li class="waiting-text">Failed.</li>';
+            storyContent.innerHTML = 'Failed.';
+            btnReset.style.display = 'block';
+        }
+
+        function removeErrorBorders() {
+            uploadCard.classList.remove('error-border');
+            captionsCard.classList.remove('error-border');
+            storyCard.classList.remove('error-border');
+        }
+
+        function resetApp() {
+            selectedFiles = [];
+            previewStrip.innerHTML = '';
+            fileInput.value = '';
+            
+            btnGenerate.disabled = true;
+            btnGenerate.classList.remove('ready');
+            btnSpinner.style.display = 'none';
+            
+            captionsList.innerHTML = '<li class="waiting-text" id="captions-waiting">Waiting…</li>';
+            storyContent.innerHTML = 'Waiting…';
+            storyContent.classList.add('waiting-text');
+            
+            btnReset.style.display = 'none';
+            errorMsg.style.display = 'none';
+            removeErrorBorders();
+        }
+    </script>
+</body>
+</html>
