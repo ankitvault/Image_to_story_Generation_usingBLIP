@@ -5,3 +5,4 @@ transformers>=4.40
 Pillow>=10.0
 sentencepiece>=0.1.99
 accelerate>=0.27
+gunicorn>=22.0.4
