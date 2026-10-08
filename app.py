@@ -78,5 +78,5 @@ if __name__ == "__main__":
     if not UPLOAD_FOLDER.exists():
         UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
         
-    print("Server ready → http://127.0.0.1:5000")
+    print("Server ready -> http://127.0.0.1:5000")
     app.run(host="127.0.0.1", port=5000, debug=False)

@@ -6,3 +6,7 @@ A Flask web application that generates cohesive narrative stories from sequences
 2. Ensure you have the required dependencies (refer to requirements.txt).
 3. Place your fine-tuned BLIP model in the `k7owntrained` folder.
 4. Run `python app.py` to start the server.
+
+
+# sometimes need to run requirement pip install -r requirements.txt
+
