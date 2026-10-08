@@ -1,3 +1,4 @@
+import os
 import torch
 from pathlib import Path
 from PIL import Image
@@ -6,12 +7,20 @@ from transformers import (
     T5Tokenizer, T5ForConditionalGeneration
 )
 
+BASE_DIR = Path(__file__).resolve().parent
+
 class AIPipeline:
     def __init__(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         print("Loading BLIP...")
-        blip_path = r"C:\Users\ankit\Downloads\ImageCaptioningModel5\k7owntrained"
+        local_blip = BASE_DIR / "k7owntrained"
+        if local_blip.exists():
+            blip_path = str(local_blip)
+        else:
+            blip_path = "Salesforce/blip-image-captioning-large"
+            
+        print(f"Loading BLIP from: {blip_path}")
         self.blip_processor = BlipProcessor(
             image_processor=BlipImageProcessor.from_pretrained(blip_path),
             tokenizer=AutoTokenizer.from_pretrained(blip_path)
